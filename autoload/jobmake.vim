@@ -112,8 +112,6 @@ function! s:Make(options, args) abort
     call jobmake#statusline#ResetCounts()
   endif
 
-  call s:HandleLoclistQflistDisplay(location_mode)
-
   let job_ids = []
 
   let maker = s:MakerFromCommand(&shell, &makeprg)
@@ -191,6 +189,7 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
         \ 'clean': function('s:CleanJobinfo'),
         \ 'window_register': function('s:AddJobinfoForCurrentWin'),
         \ 'job_output': function('s:RegisterJobOutput'),
+        \ 'open_window': function('s:HandleListDisplay'),
         \ 'argv': argv,
         \ 'location_mode': a:location_mode,
         \ 'jump': a:jump,
@@ -213,6 +212,8 @@ endfunction
 function! s:StartJob() abort dict
   call jobmake#utils#DebugMessage('starting: '.join(self.argv, " "))
 
+  call self.open_window(0)
+
   let job = jobstart(self.argv, self)
 
   if job == 0
@@ -229,12 +230,18 @@ function! s:StartJob() abort dict
   return job
 endfunction
 
-function! s:HandleLoclistQflistDisplay(location_mode) abort
-  let open_val = get(g:, 'jobmake_open_list')
+function! s:HandleListDisplay(on_exit) abort dict
+  let open_val = get(g:, 'jobmake_open_list', 0)
+  if a:on_exit
+    let open_val = get(g:, 'jobmake_open_list_exit', open_val)
+  else
+    let open_val = get(g:, 'jobmake_open_list_start', open_val)
+  endif
+
   if open_val
     let height = get(g:, 'jobmake_list_height', 10)
     let win_val = winnr()
-    if a:location_mode
+    if self.location_mode
       exe 'lwindow' height
     else
       exe 'cwindow' height
@@ -259,7 +266,7 @@ function! s:RegisterJobOutput(lines) abort dict
     endif
   endif
 
-  call s:HandleLoclistQflistDisplay(self.location_mode)
+  call self.open_window(0)
 endfunction
 
 "			5. The errorfile is read using 'errorformat'.
@@ -342,6 +349,8 @@ function! s:HandleExit(job_id, data, event_type) abort dict
     call self.job_output(self.lines['stderr'])
     "6. All relevant |QuickFixCmdPost| autocommands are
     "  executed. See example below.
+
+    call self.open_window(1)
 
     doautocmd QuickFixCmdPost
 
