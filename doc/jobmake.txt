@@ -16,19 +16,21 @@ CONTENTS                                                      *jobmake-contents*
 1. Introduction                                           *jobmake-introduction*
 
 Jobmake leverages neovim's |job-control| feature where available to run
-programs like syntax checkers asynchronously. Where job control is not
-available, it resorts to a synchronous |system()| call, making it possible to
-run this plugin in both vim and neovim. This plugin is heavily inspired by
-fantastic vim plugins such as syntastic and dispatch.
+programs like syntax checkers asynchronously. This plugin is heavily inspired
+by fantastic vim plugins such as neomake, syntastic and dispatch.
+
+Jobmake tries to emulate the Vim builtin :make, except that the makeprg is run
+in an asynchronous job.
 
 ==============================================================================
 2. Commands                                                   *jobmake-commands*
 
                                          *jobmake-:Jobmake* *jobmake-:JobmakeFile*
-:Jmake                Run a make command with the current file as input.
+:Jmake                Run a make command and put the output in quickfix.
 
                                      *jobmake-:Jobmake!* *jobmake-:JobmakeProject*
-:Jmake!               Run a make command with no file as input.
+:Jmake!               Run a make command and put the output in the current
+                      location list.
 
                                                       *jobmake-:JobmakeListJobs*
 :JmakeListJobs        List all running jobs in the format: >
@@ -42,7 +44,7 @@ fantastic vim plugins such as syntastic and dispatch.
 3. Configuration                                         *jobmake-configuration*
 
 If you just want an easy way to run |:make| asynchronously, you're all set.
-Just set your |makeprg| and |errorformat| as usual, and run |:Jobmake!|. If
+Just set your |makeprg| and |errorformat| as usual, and run |:Jmake!|. If
 you want more, read on.
 
 Global Options                                                 *jobmake-options*
@@ -52,17 +54,13 @@ This setting will open the |loclist| or |quickfix| list (depending on whether
 it is operating on a file) when adding entries. A value of 2 will preserve the
 cursor position when the |loclist| or |quickfix| window is opened. Defaults to 0.
 
+g:jobmake_open_list_exit
+This setting behaves like g:jobmake_open_list, but only opens the list when
+the job completes.
+
 *g:jobmake_list_height*
 The height of the |loclist| or |quickfix| list opened by jobmake.
 Defaults to 10.
-
-*g:jobmake_echo_current_error*
-This setting will echo the error for the line your cursor is on, if any.
-Defaults to 1.
-
-*g:jobmake_serialize_abort_on_error*
-Setting this to 1 tells jobmake to abort after the first error status is
-encountered. This setting only works when |g:jobmake_serialize| is on.
 
 *g:jobmake_verbose*
 Controls how verbose jobmake should be. Jobmake log levels are as follows:
@@ -134,15 +132,5 @@ By default, *LoclistCounts* returns the counts for the current buffer (i.e.
 `bufnr("%")`), but you can pass an optional argument: passing a buffer number
 will retrieve the counts for a particular buffer, while passing the string
 `'all'` will return a dictionary of counts for all buffers.
-
-*jobmake#ProcessCurrentWindow*
-This is the function that takes the job output and puts it into the loclist or
-qflist, etc. Currently, if you stay in the window you called
-|:Jobmake| from, this will happen as the job output comes in. However, if you go
-to a different window, jobmake will wait until you return to that window for
-the job output to be processed. Currently, that will happen on |WinEnter| and
-|CursorHold|. You can also call this function directly if you need to force
-it. This function is not currently used for |:Jobmake!|, which always
-processes its output as it arrives.
 
 vim: ft=help tw=78
