@@ -1,7 +1,7 @@
 " Setup and helpers for all tests.
 
 Execute:
-  let neomake_verbose = 3
+  let jobmake_verbose = 3
 
-  command! -nargs=* RunNeomake Neomake <args>
-    \ | while len(neomake#GetJobs()) | sleep 50m | endwhile
+  command! -nargs=* RunJobmake Jobmake <args>
+    \ | while len(jobmake#GetJobs()) | sleep 50m | endwhile

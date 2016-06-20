@@ -5,26 +5,26 @@ function! s:setCount(counts, item, buf) abort
     endif
 endfunction
 
-function! neomake#statusline#ResetCountsForBuf(buf) abort
+function! jobmake#statusline#ResetCountsForBuf(buf) abort
     let s:loclist_counts[a:buf] = {}
 endfunction
 
-function! neomake#statusline#ResetCounts() abort
+function! jobmake#statusline#ResetCounts() abort
     let s:qflist_counts = {}
     let s:loclist_counts = {}
 endfunction
-call neomake#statusline#ResetCounts()
+call jobmake#statusline#ResetCounts()
 
-function! neomake#statusline#AddLoclistCount(buf, item) abort
+function! jobmake#statusline#AddLoclistCount(buf, item) abort
     let s:loclist_counts[a:buf] = get(s:loclist_counts, a:buf, {})
     call s:setCount(s:loclist_counts[a:buf], a:item, a:buf)
 endfunction
 
-function! neomake#statusline#AddQflistCount(item) abort
+function! jobmake#statusline#AddQflistCount(item) abort
     call s:setCount(s:qflist_counts, a:item, 0)
 endfunction
 
-function! neomake#statusline#LoclistCounts(...) abort
+function! jobmake#statusline#LoclistCounts(...) abort
     let buf = a:0 ? a:1 : bufnr('%')
     if buf ==# 'all'
         return s:loclist_counts
@@ -32,7 +32,7 @@ function! neomake#statusline#LoclistCounts(...) abort
     return get(s:loclist_counts, buf, {})
 endfunction
 
-function! neomake#statusline#QflistCounts() abort
+function! jobmake#statusline#QflistCounts() abort
     return s:qflist_counts
 endfunction
 
@@ -53,10 +53,10 @@ function! s:showErrWarning(counts, prefix)
     endif
 endfunction
 
-function! neomake#statusline#LoclistStatus(...) abort
-    return s:showErrWarning(neomake#statusline#LoclistCounts(), a:0 ? a:1 : '')
+function! jobmake#statusline#LoclistStatus(...) abort
+    return s:showErrWarning(jobmake#statusline#LoclistCounts(), a:0 ? a:1 : '')
 endfunction
 
-function! neomake#statusline#QflistStatus(...) abort
-    return s:showErrWarning(neomake#statusline#QflistCounts(), a:0 ? a:1 : '')
+function! jobmake#statusline#QflistStatus(...) abort
+    return s:showErrWarning(jobmake#statusline#QflistCounts(), a:0 ? a:1 : '')
 endfunction
