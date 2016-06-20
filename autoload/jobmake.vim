@@ -331,12 +331,12 @@ function! s:HandleExit(job_id, data, event_type) abort dict
       compiler! self.compiler
     endif
 
-    if len(self.lines) > 0 && self.lines['stdout'][-1] == ''
+    if len(self.lines['stdout']) > 0 && self.lines['stdout'][-1] == ''
       call remove(self.lines['stdout'], -1)
     endif
     call self.job_output(self.lines['stdout'])
 
-    if len(self.lines) > 0 && self.lines['stderr'][-1] == ''
+    if len(self.lines['stderr']) > 0 && self.lines['stderr'][-1] == ''
       call remove(self.lines['stderr'], -1)
     endif
     call self.job_output(self.lines['stderr'])
