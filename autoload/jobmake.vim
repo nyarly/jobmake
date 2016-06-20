@@ -171,10 +171,16 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
   let has_args = type(args) == type([])
 
   let argv = [exe]
+  call jobmake#utils#DebugMessage('build: '.join(argv, " "))
   if has_args
     let argv = argv + args
   endif
-  let argv = argv + a:arglist
+  call jobmake#utils#DebugMessage('build: '.join(argv, " "))
+
+  if len(a:arglist) > 0
+      call jobmake#utils#DebugMessage('arglist: '.type(a:arglist).' '.len(a:arglist).' '.string(a:arglist))
+      let argv = argv + a:arglist
+  endif
 
   call jobmake#utils#LoudMessage('Starting: '.join(argv, ' '))
   let opts = {
@@ -193,13 +199,13 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
         \ 'lines': {'stdout':[], 'stderr':[]},
         \ 'event_type': '',
         \ 'last_register': 0,
-        \ 'compiler': getbufvar('#', 'current_compiler', 'make')
+        \ 'compiler': getbufvar('#', 'current_compiler', '')
         \ }
 
   return opts
 endfunction
 
-function! s:AddJobinfoForCurrentWin(self)
+function! s:AddJobinfoForCurrentWin() dict
   " Add jobinfo to current window.
   call settabwinvar(self.tab, self.win, 'jobmake_job', self)
 endfunction
@@ -258,14 +264,18 @@ endfunction
 
 "			5. The errorfile is read using 'errorformat'.
 function! s:HandleOutput(jobid, data, event_type) dict abort
-  let old_compiler = current_compiler
+  if exists("g:current_compiler")
+    let l:old_compiler = g:current_compiler
+  endif
   try
-    if self.compiler != old_compiler
+    if (!exists('l:old_compiler') || self.compiler != old_compiler)
+          \ && self.compiler != ''
+      call jobmake#utils#DebugMessage('Switching to job compiler: '.self.compiler)
       compiler! self.compiler
     endif
 
-    call jobmake#utils#DebugMessage( \ &makeprg.' '.a:event_type.': ["'.join(a:data, '", "').'"]')
-    call jobmake#utils#DebugMessage( \ &makeprg.' '.a:event_type.' done.')
+    call jobmake#utils#DebugMessage( &makeprg.' '.a:event_type.': ["'.join(a:data, '", "').'"]')
+    call jobmake#utils#DebugMessage( &makeprg.' '.a:event_type.' done.')
 
     " Register job output. Buffer registering of output for long running
     " jobs.
@@ -276,9 +286,13 @@ function! s:HandleOutput(jobid, data, event_type) dict abort
     " a:data is a List of 'lines' read. Each element *after* the first
     " element represents a newline
       " As per https://github.com/neovim/neovim/issues/3555
-    let lines = lines[:-2]
-          \ + [lines[-1] . get(a:data, 0, '')]
-          \ + a:data[1:]
+    if len(lines) > 0
+      let lines = lines[:-2]
+            \ + [lines[-1] . get(a:data, 0, '')]
+            \ + a:data[1:]
+    else
+      let lines = a:data
+    endif
 
     let now = localtime()
     if       len(lines) > 5 ||
@@ -290,9 +304,15 @@ function! s:HandleOutput(jobid, data, event_type) dict abort
     let self.lines[a:event_type] = lines
 
   finally
-    if current_compiler != old_compiler
-      compiler! old_compiler
-    endif
+    if exists("l:old_compiler")
+      if g:current_compiler != l:old_compiler
+        compiler! l:old_compiler
+      endif
+    else
+      if exists('g:current_compiler')
+        unlet g:current_compiler
+      endif
+    end
   endtry
 endfunction
 
@@ -301,16 +321,24 @@ endfunction
 "			7. If [!] is not given the first error is jumped to.
 "			8. The errorfile is deleted.
 function! s:HandleExit(job_id, data, event_type) abort dict
-  let old_compiler = current_compiler
+  if exists("g:current_compiler")
+    let l:old_compiler = g:current_compiler
+  endif
   try
-    if self.compiler != old_compiler
+    if (!exists('l:old_compiler') || self.compiler != old_compiler)
+          \ && self.compiler != ''
+      call jobmake#utils#DebugMessage('Switching to job compiler: '.self.compiler)
       compiler! self.compiler
     endif
 
-    if self.lines[-1] == ''
-      call remove(self.lines, -1)
+    if self.lines['stdout'][-1] == ''
+      call remove(self.lines['stdout'], -1)
     endif
     call self.job_output(self.lines['stdout'])
+
+    if self.lines['stderr'][-1] == ''
+      call remove(self.lines['stderr'], -1)
+    endif
     call self.job_output(self.lines['stderr'])
     "6. All relevant |QuickFixCmdPost| autocommands are
     "  executed. See example below.
@@ -331,9 +359,15 @@ function! s:HandleExit(job_id, data, event_type) abort dict
     endif
 
   finally
-    if current_compiler != old_compiler
-      compiler! old_compiler
-    endif
+    if exists("l:old_compiler")
+      if g:current_compiler != l:old_compiler
+        compiler! l:old_compiler
+      endif
+    else
+      if exists('g:current_compiler')
+        unlet g:current_compiler
+      endif
+    end
   endtry
 endfunction
 
@@ -344,7 +378,7 @@ function! s:CleanJobinfo() abort dict
     call settabwinvar(self.tab, self.win, 'jobmake_job', {})
   else
     if s:cur_job == self
-      s.cur_job = {}
+      let s:cur_job = {}
     endif
   endif
 endfunction

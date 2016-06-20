@@ -1,8 +1,8 @@
 command! -nargs=* -bang -bar
-      \ Jmake call jobmake#Make(<bang>1, 'quickfix', [<f-args>])
+      \ Jmake call jobmake#Make(<bang>1, 'quickfix', <f-args>)
 
 command! -nargs=* -bang -bar
-      \ Jlmake call jobmake#Make(<bang>1, 'location', [<f-args>])
+      \ Jlmake call jobmake#Make(<bang>1, 'location', <f-args>)
 
 
 " The idea here is to run a :Jmake with the named compiler
