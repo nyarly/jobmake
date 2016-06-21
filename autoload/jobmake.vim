@@ -313,7 +313,7 @@ function! s:HandleOutput(jobid, data, event_type) dict abort
   finally
     if exists("l:old_compiler")
       if g:current_compiler != l:old_compiler
-        compiler! l:old_compiler
+        exe "compiler! ".l:old_compiler
       endif
     else
       if exists('g:current_compiler')
@@ -370,7 +370,7 @@ function! s:HandleExit(job_id, data, event_type) abort dict
   finally
     if exists("l:old_compiler")
       if g:current_compiler != l:old_compiler
-        compiler! l:old_compiler
+        exe "compiler! ".l:old_compiler
       endif
     else
       if exists('g:current_compiler')
