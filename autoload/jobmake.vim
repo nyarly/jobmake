@@ -278,7 +278,7 @@ function! s:HandleOutput(jobid, data, event_type) dict abort
     if (!exists('l:old_compiler') || self.compiler != old_compiler)
           \ && self.compiler != ''
       call jobmake#utils#DebugMessage('Switching to job compiler: '.self.compiler)
-      compiler! self.compiler
+      exec "compiler! ".self.compiler
     endif
 
     call jobmake#utils#DebugMessage( &makeprg.' '.a:event_type.': ["'.join(a:data, '", "').'"]')
@@ -335,7 +335,7 @@ function! s:HandleExit(job_id, data, event_type) abort dict
     if (!exists('l:old_compiler') || self.compiler != old_compiler)
           \ && self.compiler != ''
       call jobmake#utils#DebugMessage('Switching to job compiler: '.self.compiler)
-      compiler! self.compiler
+      exec "compiler! ".self.compiler
     endif
 
     if len(self.lines['stdout']) > 0 && self.lines['stdout'][-1] == ''
