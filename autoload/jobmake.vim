@@ -149,13 +149,8 @@ function! s:MakerFromCommand(shell, command) abort
 endfunction
 
 function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
-  let make_id = s:make_id
-  let s:make_id += 1
-  let jobinfo = {
-        \ 'name': 'jobmake_'.make_id,
-        \ 'winnr': winnr(),
-        \ 'bufnr': bufnr('%'),
-        \ }
+  "let make_id = s:make_id
+  "let s:make_id += 1
   let exe = a:maker.exe
   let args = a:maker.args
 
@@ -169,11 +164,9 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
   let has_args = type(args) == type([])
 
   let argv = [exe]
-  call jobmake#utils#DebugMessage('build: '.join(argv, " "))
   if has_args
     let argv = argv + args
   endif
-  call jobmake#utils#DebugMessage('build: '.join(argv, " "))
 
   if len(a:arglist) > 0
       call jobmake#utils#DebugMessage('arglist: '.type(a:arglist).' '.len(a:arglist).' '.string(a:arglist))
@@ -200,6 +193,8 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
         \ 'last_register': 0,
         \ 'compiler': getbufvar('#', 'current_compiler', '')
         \ }
+
+  call jobmake#utils#DebugMessage('Captured compiler: '.opts.compiler)
 
   return opts
 endfunction
@@ -279,6 +274,8 @@ function! s:HandleOutput(jobid, data, event_type) dict abort
           \ && self.compiler != ''
       call jobmake#utils#DebugMessage('Switching to job compiler: '.self.compiler)
       exec "compiler! ".self.compiler
+    else
+      call jobmake#utils#DebugMessage('Job compiler matches current compiler: '.self.compiler)
     endif
 
     call jobmake#utils#DebugMessage( &makeprg.' '.a:event_type.': ["'.join(a:data, '", "').'"]')
@@ -336,6 +333,8 @@ function! s:HandleExit(job_id, data, event_type) abort dict
           \ && self.compiler != ''
       call jobmake#utils#DebugMessage('Switching to job compiler: '.self.compiler)
       exec "compiler! ".self.compiler
+    else
+      call jobmake#utils#DebugMessage('Job compiler matches current compiler: '.self.compiler)
     endif
 
     if len(self.lines['stdout']) > 0 && self.lines['stdout'][-1] == ''
