@@ -191,7 +191,7 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
         \ 'lines': {'stdout':[], 'stderr':[]},
         \ 'event_type': '',
         \ 'last_register': 0,
-        \ 'compiler': getbufvar('#', 'current_compiler', '')
+        \ 'compiler': getbufvar('%', 'current_compiler', '')
         \ }
 
   call jobmake#utils#DebugMessage('Captured compiler: '.opts.compiler)
