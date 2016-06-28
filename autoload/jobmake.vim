@@ -174,6 +174,7 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
   endif
 
   call jobmake#utils#LoudMessage('Starting: '.join(argv, ' '))
+  let compiler = get(b:, 'current_compiler', get(g:, 'current_compiler', ''))
   let opts = {
         \ 'on_stdout': function('s:HandleOutput'),
         \ 'on_stderr': function('s:HandleOutput'),
@@ -191,7 +192,7 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
         \ 'lines': {'stdout':[], 'stderr':[]},
         \ 'event_type': '',
         \ 'last_register': 0,
-        \ 'compiler': getbufvar('%', 'current_compiler', '')
+        \ 'compiler': compiler
         \ }
 
   call jobmake#utils#DebugMessage('Captured compiler: '.opts.compiler)
