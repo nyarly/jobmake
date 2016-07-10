@@ -1,4 +1,4 @@
-" vim: ts=4 sw=4 et
+" vim: ts=2 sw=2 et
 scriptencoding utf-8
 
 let s:make_id = 1
@@ -114,10 +114,9 @@ function! s:Make(options, args) abort
 
   let job_ids = []
 
-  let maker = s:MakerFromCommand(&shell, &makeprg)
 
   "XXX need to handle the case where there is an existing make job
-  let job = jobmake#MakeJob(maker, a:args, location_mode, jump)
+  let job = jobmake#MakeJob(a:args, location_mode, jump)
 
 "			4. The program given with the 'makeprg' option is
 "			   started (default "make") with the optional
@@ -148,11 +147,12 @@ function! s:MakerFromCommand(shell, command) abort
         \ }
 endfunction
 
-function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
+function! jobmake#MakeJob(arglist, location_mode, jump) abort
+  let maker = s:MakerFromCommand(&shell, &makeprg)
   "let make_id = s:make_id
   "let s:make_id += 1
-  let exe = a:maker.exe
-  let args = a:maker.args
+  let exe = maker.exe
+  let args = maker.args
 
   if jobmake#utils#IsRunningWindows()
     " Don't expand &shellcmdflag argument of cmd.exe
@@ -174,7 +174,6 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
   endif
 
   call jobmake#utils#LoudMessage('Starting: '.join(argv, ' '))
-  let compiler = get(b:, 'current_compiler', get(g:, 'current_compiler', ''))
   let opts = {
         \ 'on_stdout': function('s:HandleOutput'),
         \ 'on_stderr': function('s:HandleOutput'),
@@ -192,12 +191,19 @@ function! jobmake#MakeJob(maker, arglist, location_mode, jump) abort
         \ 'lines': {'stdout':[], 'stderr':[]},
         \ 'event_type': '',
         \ 'last_register': 0,
-        \ 'compiler': compiler
+        \ 'compiler': s:GetVar('current_compiler', ''),
+        \ 'makeprg': &makeprg,
+        \ 'errorformat': &errorformat,
+        \ 'makeef': &makeef,
         \ }
 
   call jobmake#utils#DebugMessage('Captured compiler: '.opts.compiler)
 
   return opts
+endfunction
+
+function! s:GetVar(name, default)
+  return get(b:, a:name, get(g:, a:name, a:default))
 endfunction
 
 function! s:AddJobinfoForCurrentWin() dict
@@ -251,74 +257,60 @@ endfunction
 function! s:RegisterJobOutput(lines) abort dict
   let lines = copy(a:lines)
 
-  call jobmake#utils#DebugMessage(&makeprg.' processing '.
+  call jobmake#utils#DebugMessage(self.makeprg.' processing '.
         \ len(a:lines).' lines of output')
   if len(a:lines)
-    if self.location_mode
-    " XXX Needs laddexpr if list=loc
-      laddexpr a:lines
-    else
-      caddexpr a:lines
+    let l:has_efm = 0
+    if exists('&errorformat')
+      let l:has_efm = 1
+      let l:old_efm = &errorformat
     endif
+    try
+      let &errorformat = self.errorformat
+      if self.location_mode
+        " XXX Needs laddexpr if list=loc
+        laddexpr a:lines
+      else
+        caddexpr a:lines
+      endif
+      call self.open_window(0)
+    finally
+      if l:has_efm
+        let &errorformat = l:old_efm
+      endif
+    endtry
   endif
-
-  call self.open_window(0)
 endfunction
 
 "			5. The errorfile is read using 'errorformat'.
 function! s:HandleOutput(jobid, data, event_type) dict abort
-  if exists("g:current_compiler")
-    let l:old_compiler = g:current_compiler
+  call jobmake#utils#DebugMessage( self.makeprg.' '.a:event_type.': ["'.join(a:data, '", "').'"]')
+  call jobmake#utils#DebugMessage( self.makeprg.' '.a:event_type.' done.')
+
+  " Register job output. Buffer registering of output for long running
+  " jobs.
+  let last_event_type = self.event_type
+  let self.event_type = a:event_type
+
+  let lines = self.lines[a:event_type]
+  " a:data is a List of 'lines' read. Each element *after* the first
+  " element represents a newline
+  " As per https://github.com/neovim/neovim/issues/3555
+  if len(lines) > 0
+    let lines = lines[:-2]
+          \ + [lines[-1] . get(a:data, 0, '')]
+          \ + a:data[1:]
+  else
+    let lines = a:data
   endif
-  try
-    if (!exists('l:old_compiler') || self.compiler != old_compiler)
-          \ && self.compiler != ''
-      call jobmake#utils#DebugMessage('Switching to job compiler: '.self.compiler)
-      exec "compiler! ".self.compiler
-    else
-      call jobmake#utils#DebugMessage('Job compiler matches current compiler: '.self.compiler)
-    endif
 
-    call jobmake#utils#DebugMessage( &makeprg.' '.a:event_type.': ["'.join(a:data, '", "').'"]')
-    call jobmake#utils#DebugMessage( &makeprg.' '.a:event_type.' done.')
-
-    " Register job output. Buffer registering of output for long running
-    " jobs.
-    let last_event_type = self.event_type
-    let self.event_type = a:event_type
-
-    let lines = self.lines[a:event_type]
-    " a:data is a List of 'lines' read. Each element *after* the first
-    " element represents a newline
-      " As per https://github.com/neovim/neovim/issues/3555
-    if len(lines) > 0
-      let lines = lines[:-2]
-            \ + [lines[-1] . get(a:data, 0, '')]
-            \ + a:data[1:]
-    else
-      let lines = a:data
-    endif
-
-    let now = localtime()
-    if       len(lines) > 5 ||
-          \  now - self.last_register > 2
-      call self.job_output(lines[:-2])
-      let lines = lines[-1:]
-      let self.last_register = now
-    endif
-    let self.lines[a:event_type] = lines
-
-  finally
-    if exists("l:old_compiler")
-      if g:current_compiler != l:old_compiler
-        exe "compiler! ".l:old_compiler
-      endif
-    else
-      if exists('g:current_compiler')
-        unlet g:current_compiler
-      endif
-    end
-  endtry
+  let now = localtime()
+  if len(lines) > 5 || now - self.last_register > 2
+    call self.job_output(lines[:-3])
+    let lines = lines[-1:]
+    let self.last_register = now
+  endif
+  let self.lines[a:event_type] = lines
 endfunction
 
 "			6. All relevant |QuickFixCmdPost| autocommands are
@@ -326,58 +318,35 @@ endfunction
 "			7. If [!] is not given the first error is jumped to.
 "			8. The errorfile is deleted.
 function! s:HandleExit(job_id, data, event_type) abort dict
-  if exists("g:current_compiler")
-    let l:old_compiler = g:current_compiler
+  if len(self.lines['stdout']) > 0 && self.lines['stdout'][-1] == ''
+    call remove(self.lines['stdout'], -1)
   endif
-  try
-    if (!exists('l:old_compiler') || self.compiler != old_compiler)
-          \ && self.compiler != ''
-      call jobmake#utils#DebugMessage('Switching to job compiler: '.self.compiler)
-      exec "compiler! ".self.compiler
+  call self.job_output(self.lines['stdout'])
+
+  if len(self.lines['stderr']) > 0 && self.lines['stderr'][-1] == ''
+    call remove(self.lines['stderr'], -1)
+  endif
+  call self.job_output(self.lines['stderr'])
+  "6. All relevant |QuickFixCmdPost| autocommands are
+  "  executed. See example below.
+
+  call self.open_window(1)
+
+  doautocmd QuickFixCmdPost
+
+  let status = a:data
+  call self.clean()
+  call jobmake#utils#QuietMessage(
+        \ self.makeprg. ' completed with exit code '.status)
+
+  if self.jump
+    if self.location_mode
+      ll
     else
-      call jobmake#utils#DebugMessage('Job compiler matches current compiler: '.self.compiler)
+      cc
     endif
+  endif
 
-    if len(self.lines['stdout']) > 0 && self.lines['stdout'][-1] == ''
-      call remove(self.lines['stdout'], -1)
-    endif
-    call self.job_output(self.lines['stdout'])
-
-    if len(self.lines['stderr']) > 0 && self.lines['stderr'][-1] == ''
-      call remove(self.lines['stderr'], -1)
-    endif
-    call self.job_output(self.lines['stderr'])
-    "6. All relevant |QuickFixCmdPost| autocommands are
-    "  executed. See example below.
-
-    call self.open_window(1)
-
-    doautocmd QuickFixCmdPost
-
-    let status = a:data
-    call self.clean()
-    call jobmake#utils#QuietMessage(
-          \ &makeprg. ' completed with exit code '.status)
-
-    if self.jump
-      if self.location_mode
-        ll
-      else
-        cc
-      endif
-    endif
-
-  finally
-    if exists("l:old_compiler")
-      if g:current_compiler != l:old_compiler
-        exe "compiler! ".l:old_compiler
-      endif
-    else
-      if exists('g:current_compiler')
-        unlet g:current_compiler
-      endif
-    end
-  endtry
 endfunction
 
 function! s:CleanJobinfo() abort dict
