@@ -284,15 +284,15 @@ endfunction
 
 "			5. The errorfile is read using 'errorformat'.
 function! s:HandleOutput(jobid, data, event_type) dict abort
-  call jobmake#utils#DebugMessage( self.makeprg.' '.a:event_type.': ["'.join(a:data, '", "').'"]')
-  call jobmake#utils#DebugMessage( self.makeprg.' '.a:event_type.' done.')
-
   " Register job output. Buffer registering of output for long running
   " jobs.
   let last_event_type = self.event_type
   let self.event_type = a:event_type
 
   let lines = self.lines[a:event_type]
+
+  call jobmake#utils#DebugMessage( self.makeprg.' '.a:event_type.': ["'.join(lines, '", "').'"]')
+  call jobmake#utils#DebugMessage( self.makeprg.' '.a:event_type.': ["'.join(a:data, '", "').'"]')
   " a:data is a List of 'lines' read. Each element *after* the first
   " element represents a newline
   " As per https://github.com/neovim/neovim/issues/3555
@@ -307,9 +307,12 @@ function! s:HandleOutput(jobid, data, event_type) dict abort
   let now = localtime()
   if len(lines) > 5 || now - self.last_register > 2
     call self.job_output(lines[:-3])
-    let lines = lines[-1:]
+    let lines = lines[-2:]
     let self.last_register = now
   endif
+  call jobmake#utils#DebugMessage( self.makeprg.' '.a:event_type.': ["'.join(lines, '", "').'"]')
+  call jobmake#utils#DebugMessage( self.makeprg.' '.a:event_type.': ["'.join(self.lines[a:event_type], '", "').'"]')
+
   let self.lines[a:event_type] = lines
 endfunction
 
